@@ -8,7 +8,7 @@ Example MQTT touch / release event sender code for the [Bare Conductive Pi Cap](
 
 * Requires [WiringPi](http://wiringpi.com/) (`apt-get install wiringpi`)
 * Requires [Bare Conductive's MPR121 libary for WiringPi](https://github.com/BareConductive/wiringpi-mpr121)
-* Requires [libmosquitto-dev](https://mosquitto.org/) (`apt-get install liblo-dev`)
+* Requires [libmosquitto-dev](https://mosquitto.org/) (`apt-get install libmosquitto-dev`)
 
 ## Install / Build
 
