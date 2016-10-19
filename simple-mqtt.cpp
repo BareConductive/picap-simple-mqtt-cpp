@@ -44,24 +44,44 @@ void intHandler(int dummy) {
   exit(0);
 }
 
+// print help
+void printHelp() {
+  cout
+    << "Sends Pi Cap touch readings through MQTT - MUST be run as root." << endl << endl
+    << "Usage: simple-mqtt [OPTION]" << endl << endl
+    << "Options:" << endl
+    << "  -b, --broker    MQTT broker [REQUIRED]" << endl
+    << "  -u, --username  MQTT broker username [OPTIONAL]" << endl
+    << "  -p, --password  MQTT broker password [OPTIONAL]" << endl
+    << "      --help      displays this message" << endl;
+
+  exit(0);
+}
+
 int main(int argc, char* argv[]) {
-  string broker = "";
+  string broker   = "";
+  string username = "";
+  string password = "";
 
   // sift through the arguments and set stuff up / show help as appropriate
   for (int i = 0; i < argc; i++) {
     if ((string)argv[i] == "-b" || (string)argv[i] == "--broker" ) {
       broker = (string)argv[i+1];
     }
-    else if ((string)argv[i] == "--help") {
-      cout
-        << "Sends Pi Cap touch readings through MQTT - MUST be run as root." << endl << endl
-        << "Usage: simple-mqtt [OPTION]" << endl << endl
-        << "Options:" << endl
-        << "  -b, --broker  MQTT broker [REQUIRED]" << endl
-        << "      --help    displays this message" << endl;
-
-      exit(0);
+    if ((string)argv[i] == "-u" || (string)argv[i] == "--username" ) {
+      username = (string)argv[i+1];
     }
+    if ((string)argv[i] == "-p" || (string)argv[i] == "--password" ) {
+      password = (string)argv[i+1];
+    }
+    else if ((string)argv[i] == "--help") {
+      printHelp();
+    }
+  }
+
+  // stop if no broker is provided
+  if (broker.length() == 0) {
+    printHelp();
   }
 
   // register our interrupt handler for the Ctrl+C signal
@@ -70,6 +90,22 @@ int main(int argc, char* argv[]) {
   // start MQTT lib
   mosquitto_lib_init();
   struct mosquitto *client = mosquitto_new(NULL, true, NULL);
+
+  // authenticate if username was provided
+  bool hasUsername = username.length() > 0;
+  bool hasPassword = password.length() > 0;
+
+  if (hasUsername) {
+    if (hasPassword) {
+      // set password if password was provided
+      mosquitto_username_pw_set(client, username.c_str(), password.c_str());
+    }
+    else {
+      // otherwise authenticate with username only
+      mosquitto_username_pw_set(client, username.c_str(), NULL);
+    }
+  }
+
   mosquitto_connect(client, broker.c_str(), 1883, 2);
 
   // default MPR121 address on the Pi Cap
@@ -113,12 +149,20 @@ int main(int argc, char* argv[]) {
         sprintf(buffer, "%d", i);
 
         if (MPR121.isNewTouch(i)) {
-          cout << "touch: " << i << endl;
-          mosquitto_publish(client, NULL, "picap/touched", 2, buffer, 0, false);
+          if (hasUsername) {
+            mosquitto_publish(client, NULL, (username + "/feeds/picap-touched").c_str(), 2, buffer, 0, false);
+          }
+          else {
+            mosquitto_publish(client, NULL, "/feeds/picap-touched", 2, buffer, 0, false);
+          }
         }
         else if (MPR121.isNewRelease(i)) {
-          cout << "release: " << i << endl;
-          mosquitto_publish(client, NULL, "picap/released", 2, buffer, 0, false);
+          if (hasUsername) {
+            mosquitto_publish(client, NULL, (username + "/feeds/picap-released").c_str(), 2, buffer, 0, false);
+          }
+          else {
+            mosquitto_publish(client, NULL, "/feeds/picap-released", 2, buffer, 0, false);
+          }
         }
       }
     }
